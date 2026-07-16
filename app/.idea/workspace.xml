@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="NONE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="fe4c46ff-c27e-4dbe-8370-ff5d55ee44cd" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/AndroidManifest.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/MainActivity.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/MainActivity.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/MyApplication.kt" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/MyApplication.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/appCompat/DemoActivity.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/camera2/DemoActivity.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/DemoActivityLite.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/NewCameraXActivity.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/analysis/AnalysisResult.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/analysis/AnalysisType.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/analysis/ChooseAnalysisAdapter.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/analysis/ChooseAnalysisFragment.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/analysis/HuaweiScanAnalysis.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/analysis/OCRAnalysis.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/analysis/RealTimeAnalysis.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/analysis/ZXingAnalysis.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/analyzer/AnalyzeCallback.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/analyzer/MyAnalyzer.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/capture/MyCaptureCallback.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/extender/MyExtenderHelper.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/selector/AllCameraFilter.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/utils/BeepManager.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/utils/Constants.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/utils/Utils.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/video/MyRecordCallback.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/cameraX/viewmodel/CameraViewModel.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/coroutines/DemoActivity.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/databinding/DemoActivity.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/databinding/MyHolder.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/databinding/OneWayBindingAdapter.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/databinding/Person.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/databinding/TwoWayBindingAdapter.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/lifecycle/ActivityLifecycleCallbackImpl.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/lifecycle/DemoActivity.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/lifecycle/LifeCycleObserverImpl.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/lifecycle/TestInterface.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/liveData/DemoActivity.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/liveData/Movie.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/liveData/MovieChangeListener.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/liveData/MovieLiveData.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/liveData/MovieManager.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/old/DemoActivity.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/room/DemoActivity.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/room/GestureListener.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/room/Movie.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/room/MovieAdapter.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/room/MovieDao.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/room/MovieDataBase.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/room/MovieGestureCallback.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/room/MovieViewModel.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/room/Utils.kt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewBinding/DemoActivity.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewBinding/DemoFragment.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewModel/DemoActivity.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewModel/DemoFragment.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewModel/OtherFragment.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewModel/Person.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewModel/PersonContextModel.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewModel/PersonContextStateModel.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewModel/PersonModel.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewModel/PersonStateModel.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewModelBinding/DemoActivity.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewModelBinding/Person.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewModelBinding/PersonsAdapter.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/ellison/jetpackdemo/viewModelBinding/PersonsContextModel.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout-land/activity_main.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/res/layout-land/activity_main.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout-land/activity_view_binding.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout-land/activity_view_model.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout-land/fragment_view_binding.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout-land/fragment_view_model.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_camera2.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_camerax_lite.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_coroutines.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_data_binding.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_data_binding_item.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_data_binding_item_one_way.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_lifecycle.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_live_data.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_main.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/res/layout/activity_main.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_main_test.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_main_test_2.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_old.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_room_db.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_room_db_item.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_view_binding.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_view_model.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_view_model_binding.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/activity_view_model_binding_item.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/analysis_list_item.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/fragment_analysis_list.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/fragment_other_view_model.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/fragment_view_binding.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/layout/fragment_view_model.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/menu/room_menu.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/raw/beep_sound.ogg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/res/values/themes.xml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/res/values/themes.xml" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ClangdSettings">
+    <option name="formatViaClangd" value="false" />
+  </component>
+  <component name="CopilotPersistence">
+    <persistenceIdMap>
+      <entry key="_E:/JetpackDemo/app" value="3GUOhEE3AJ4BEfHhI7wGNcdhxBq" />
+    </persistenceIdMap>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 2
+}]]></component>
+  <component name="ProjectId" id="3GUOhEE3AJ4BEfHhI7wGNcdhxBq" />
+  <component name="ProjectViewState">
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.cidr.known.project.marker": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.readMode.enableVisualFormatting": "true",
+    "android.gradle.sync.needed": "true",
+    "cf.first.check.clang-format": "false",
+    "cidr.known.project.marker": "true",
+    "copilot.chat.legacySessionMetadata.migrated": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "E:/JetpackDemo/app"
+  }
+}]]></component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="fe4c46ff-c27e-4dbe-8370-ff5d55ee44cd" name="Changes" comment="" />
+      <created>1784022798680</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1784022798680</updated>
+    </task>
+    <servers />
+  </component>
+</project>
