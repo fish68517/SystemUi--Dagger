@@ -4,22 +4,21 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.viewModels
-import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.GridLayoutManager
-import com.ellison.jetpackdemo.R
 import com.ellison.jetpackdemo.databinding.ActivityHiltBinding
 import com.ellison.jetpackdemo.hilt.bean.Movie
 import com.ellison.jetpackdemo.hilt.bean.MovieResponse
 import com.ellison.jetpackdemo.hilt.view.MovieAdapter
 import com.ellison.jetpackdemo.hilt.viewmodel.MovieViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class DemoActivity : BaseActivity() {
     private val movieViewModel: MovieViewModel by viewModels()
-    private lateinit var movieAdapter: MovieAdapter
+    @Inject lateinit var movieAdapter: MovieAdapter
     private lateinit var binding: ActivityHiltBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,7 +53,6 @@ class DemoActivity : BaseActivity() {
     }
 
     private fun bindRecyclerView(movieList: List<Movie>) {
-        movieAdapter = movieViewModel.movieAdapter
         movieAdapter.movieList = movieList
         movieAdapter.movieViewModel = movieViewModel
 

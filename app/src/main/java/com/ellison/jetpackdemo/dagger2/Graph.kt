@@ -6,10 +6,13 @@ import dagger.Component
 import dagger.Module
 import dagger.Provides
 import dagger.Subcomponent
+import dagger.hilt.migration.DisableInstallInCheck
 
+@DisableInstallInCheck
 @Module(subcomponents = [DemoActivityComponent::class])
 object SubcomponentsModule
 
+@DisableInstallInCheck
 @Module
 object AppModule {
     @Provides
@@ -17,6 +20,7 @@ object AppModule {
     fun provideAppConfig(): AppConfig = AppConfig(appName = "JetpackDemo")
 }
 
+@DisableInstallInCheck
 @Module
 interface DemoActivityModule {
     @Binds

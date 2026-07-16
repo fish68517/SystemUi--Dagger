@@ -9,7 +9,6 @@ import androidx.lifecycle.viewModelScope
 import com.ellison.jetpackdemo.hilt.bean.Movie
 import com.ellison.jetpackdemo.hilt.bean.MovieResponse
 import com.ellison.jetpackdemo.hilt.model.Repository
-import com.ellison.jetpackdemo.hilt.view.MovieAdapter
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
@@ -18,8 +17,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MovieViewModel @Inject constructor(
-    private val repository: Repository,
-    var movieAdapter: MovieAdapter
+    private val repository: Repository
 ) : ViewModel() {
     private val resultData = MutableLiveData<MovieResponse<List<Movie>>>()
 
