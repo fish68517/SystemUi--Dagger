@@ -1007,7 +1007,515 @@ NetworkModule 通过 @Provides OkHttpClient 告诉 Dagger：
 <pre class='hljs'><code><div>Dagger 按 类型 + 限定符 匹配依赖，
 不是按类名、方法名、参数名匹配。
 </div></code></pre>
+<h2 id="%E7%BB%A7%E7%BB%AD%E6%89%A9%E5%B1%95%EF%BC%9A%E5%BC%95%E5%85%A5-%40singleton%E3%80%81%40subcomponent-%E7%AD%89%E6%B3%A8%E8%A7%A3%E5%90%8E%E6%80%8E%E4%B9%88%E7%90%86%E8%A7%A3" tabindex="-1">继续扩展：引入 <code>@Singleton</code>、<code>@Subcomponent</code> 等注解后怎么理解</h2>
+<p>前面的代码只有四个核心注解：</p>
+<ul>
+<li><code>@Inject</code></li>
+<li><code>@Module</code></li>
+<li><code>@Provides</code></li>
+<li><code>@Component</code></li>
+</ul>
+<p>现在继续在同一个 <code>NetworkService + OkHttpClient</code> 场景上扩展，加入更接近真实 Android 项目的写法。</p>
+<h3 id="1.-%E5%8A%A0%E5%85%A5-%40singleton" tabindex="-1">1. 加入 <code>@Singleton</code></h3>
+<p>如果希望同一个 <code>AppComponent</code> 内复用同一个 <code>OkHttpClient</code>，可以加 <code>@Singleton</code>：</p>
+<pre class='hljs'><code><div><span class="hljs-keyword">import</span> javax.inject.Inject;
+<span class="hljs-keyword">import</span> javax.inject.Singleton;
+
+<span class="hljs-keyword">import</span> dagger.Component;
+<span class="hljs-keyword">import</span> dagger.Module;
+<span class="hljs-keyword">import</span> dagger.Provides;
+<span class="hljs-keyword">import</span> okhttp3.OkHttpClient;
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">NetworkService</span> {
+
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> OkHttpClient client;
+
+    <span class="hljs-meta">@Inject</span>
+    NetworkService(OkHttpClient client) {
+        <span class="hljs-built_in">this</span>.client = client;
+    }
+}
+
+<span class="hljs-meta">@Module</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">NetworkModule</span> {
+
+    <span class="hljs-meta">@Provides</span>
+    <span class="hljs-meta">@Singleton</span>
+    <span class="hljs-keyword">static</span> OkHttpClient <span class="hljs-title function_">provideOkHttpClient</span><span class="hljs-params">()</span> {
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">OkHttpClient</span>.Builder().build();
+    }
+}
+
+<span class="hljs-meta">@Singleton</span>
+<span class="hljs-meta">@Component(modules = NetworkModule.class)</span>
+<span class="hljs-keyword">interface</span> <span class="hljs-title class_">AppComponent</span> {
+
+    NetworkService <span class="hljs-title function_">getNetworkService</span><span class="hljs-params">()</span>;
+}
+</div></code></pre>
+<p>这里要注意：如果 <code>@Provides</code> 方法加了 <code>@Singleton</code>，<code>AppComponent</code> 也要加 <code>@Singleton</code>。</p>
+<p>否则 Dagger 会报类似错误：</p>
+<pre class='hljs'><code><div>AppComponent (unscoped) may not reference scoped bindings
+</div></code></pre>
+<p>原因是：一个带作用域的对象，必须挂在一个带相同作用域的 Component 上。否则 Dagger 不知道这个缓存对象应该跟谁的生命周期绑定。</p>
+<h3 id="2.-%40singleton-%E7%9A%84%E7%9C%9F%E5%AE%9E%E5%90%AB%E4%B9%89" tabindex="-1">2. <code>@Singleton</code> 的真实含义</h3>
+<p><code>@Singleton</code> 不是 JVM 全局单例。</p>
+<p>它的真实含义是：</p>
+<pre class='hljs'><code><div>在同一个 @Singleton Component 实例内部，只创建一次并缓存。
+</div></code></pre>
+<p>例如：</p>
+<pre class='hljs'><code><div><span class="hljs-type">AppComponent</span> <span class="hljs-variable">component1</span> <span class="hljs-operator">=</span> DaggerAppComponent.create();
+<span class="hljs-type">AppComponent</span> <span class="hljs-variable">component2</span> <span class="hljs-operator">=</span> DaggerAppComponent.create();
+
+<span class="hljs-type">NetworkService</span> <span class="hljs-variable">service1</span> <span class="hljs-operator">=</span> component1.getNetworkService();
+<span class="hljs-type">NetworkService</span> <span class="hljs-variable">service2</span> <span class="hljs-operator">=</span> component1.getNetworkService();
+<span class="hljs-type">NetworkService</span> <span class="hljs-variable">service3</span> <span class="hljs-operator">=</span> component2.getNetworkService();
+</div></code></pre>
+<p>如果只有 <code>OkHttpClient</code> 是 <code>@Singleton</code>，那么：</p>
+<pre class='hljs'><code><div>service1 和 service2 里面拿到的是 component1 缓存的同一个 OkHttpClient。
+service3 拿到的是 component2 自己缓存的另一个 OkHttpClient。
+</div></code></pre>
+<p>所以 <code>@Singleton</code> 的边界是 Component 实例，不是整个 App 进程的静态全局对象。</p>
+<p>Dagger 生成代码通常会用类似 <code>DoubleCheck.provider(...)</code> 的方式缓存：</p>
+<pre class='hljs'><code><div><span class="hljs-built_in">this</span>.provideOkHttpClientProvider =
+    DoubleCheck.provider(NetworkModule_ProvideOkHttpClientFactory.create());
+</div></code></pre>
+<p>可以把它理解成：</p>
+<pre class='hljs'><code><div><span class="hljs-keyword">class</span> <span class="hljs-title class_">SingletonProvider</span>&lt;T&gt; <span class="hljs-keyword">implements</span> <span class="hljs-title class_">Provider</span>&lt;T&gt; {
+    <span class="hljs-keyword">private</span> T cached;
+
+    <span class="hljs-keyword">public</span> T <span class="hljs-title function_">get</span><span class="hljs-params">()</span> {
+        <span class="hljs-keyword">if</span> (cached == <span class="hljs-literal">null</span>) {
+            cached = create();
+        }
+        <span class="hljs-keyword">return</span> cached;
+    }
+}
+</div></code></pre>
+<p>实际实现要处理线程安全，但学习时可以先这样理解。</p>
+<h3 id="3.-%E5%A6%82%E6%9E%9C-networkservice-%E4%B9%9F%E5%8A%A0-%40singleton" tabindex="-1">3. 如果 <code>NetworkService</code> 也加 <code>@Singleton</code></h3>
+<p>可以这样写：</p>
+<pre class='hljs'><code><div><span class="hljs-meta">@Singleton</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">NetworkService</span> {
+
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> OkHttpClient client;
+
+    <span class="hljs-meta">@Inject</span>
+    NetworkService(OkHttpClient client) {
+        <span class="hljs-built_in">this</span>.client = client;
+    }
+}
+</div></code></pre>
+<p>这样 <code>NetworkService</code> 本身也会在 <code>AppComponent</code> 内缓存。</p>
+<p>调用：</p>
+<pre class='hljs'><code><div><span class="hljs-type">NetworkService</span> <span class="hljs-variable">a</span> <span class="hljs-operator">=</span> component.getNetworkService();
+<span class="hljs-type">NetworkService</span> <span class="hljs-variable">b</span> <span class="hljs-operator">=</span> component.getNetworkService();
+</div></code></pre>
+<p>结果是：</p>
+<pre class='hljs'><code><div>a == b
+</div></code></pre>
+<p>如果 <code>NetworkService</code> 不加 <code>@Singleton</code>，但 <code>OkHttpClient</code> 加了 <code>@Singleton</code>，则通常是：</p>
+<pre class='hljs'><code><div>每次 getNetworkService() 创建新的 NetworkService，
+但它们内部持有同一个 OkHttpClient。
+</div></code></pre>
+<p>这就是 Scope 要分清“缓存谁”的原因。</p>
+<h2 id="%E5%BC%95%E5%85%A5-%40subcomponent" tabindex="-1">引入 <code>@Subcomponent</code></h2>
+<p>真实项目里常见的结构不是只有一个全局 Component，而是：</p>
+<pre class='hljs'><code><div>AppComponent
+└── NetworkSessionComponent
+</div></code></pre>
+<p>可以把它理解成：</p>
+<ul>
+<li><code>AppComponent</code>：App 级对象图，保存全局依赖，例如 <code>OkHttpClient</code>。</li>
+<li><code>NetworkSessionComponent</code>：一次网络会话、一个页面、一个业务流程级对象图，保存短生命周期依赖，例如 <code>NetworkService</code>。</li>
+</ul>
+<p>示例代码：</p>
+<pre class='hljs'><code><div><span class="hljs-keyword">import</span> java.lang.annotation.Retention;
+<span class="hljs-keyword">import</span> java.lang.annotation.RetentionPolicy;
+
+<span class="hljs-keyword">import</span> javax.inject.Inject;
+<span class="hljs-keyword">import</span> javax.inject.Scope;
+<span class="hljs-keyword">import</span> javax.inject.Singleton;
+
+<span class="hljs-keyword">import</span> dagger.BindsInstance;
+<span class="hljs-keyword">import</span> dagger.Component;
+<span class="hljs-keyword">import</span> dagger.Module;
+<span class="hljs-keyword">import</span> dagger.Provides;
+<span class="hljs-keyword">import</span> dagger.Subcomponent;
+<span class="hljs-keyword">import</span> okhttp3.OkHttpClient;
+
+<span class="hljs-meta">@Scope</span>
+<span class="hljs-meta">@Retention(RetentionPolicy.RUNTIME)</span>
+<span class="hljs-meta">@interface</span> NetworkSessionScope {
+}
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">NetworkService</span> {
+
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> OkHttpClient client;
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> String baseUrl;
+
+    <span class="hljs-meta">@Inject</span>
+    NetworkService(OkHttpClient client, String baseUrl) {
+        <span class="hljs-built_in">this</span>.client = client;
+        <span class="hljs-built_in">this</span>.baseUrl = baseUrl;
+    }
+}
+
+<span class="hljs-meta">@Module</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">NetworkModule</span> {
+
+    <span class="hljs-meta">@Provides</span>
+    <span class="hljs-meta">@Singleton</span>
+    <span class="hljs-keyword">static</span> OkHttpClient <span class="hljs-title function_">provideOkHttpClient</span><span class="hljs-params">()</span> {
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">OkHttpClient</span>.Builder().build();
+    }
+}
+
+<span class="hljs-meta">@Module(subcomponents = NetworkSessionComponent.class)</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">NetworkSubcomponentsModule</span> {
+}
+
+<span class="hljs-meta">@Singleton</span>
+<span class="hljs-meta">@Component(modules = {
+    NetworkModule.class,
+    NetworkSubcomponentsModule.class
+})</span>
+<span class="hljs-keyword">interface</span> <span class="hljs-title class_">AppComponent</span> {
+
+    NetworkSessionComponent.Factory <span class="hljs-title function_">networkSessionComponentFactory</span><span class="hljs-params">()</span>;
+}
+
+<span class="hljs-meta">@NetworkSessionScope</span>
+<span class="hljs-meta">@Subcomponent</span>
+<span class="hljs-keyword">interface</span> <span class="hljs-title class_">NetworkSessionComponent</span> {
+
+    NetworkService <span class="hljs-title function_">getNetworkService</span><span class="hljs-params">()</span>;
+
+    <span class="hljs-meta">@Subcomponent</span>.Factory
+    <span class="hljs-keyword">interface</span> <span class="hljs-title class_">Factory</span> {
+        NetworkSessionComponent <span class="hljs-title function_">create</span><span class="hljs-params">(<span class="hljs-meta">@BindsInstance</span> String baseUrl)</span>;
+    }
+}
+</div></code></pre>
+<p>这个版本中，<code>NetworkService</code> 多依赖了一个 <code>String baseUrl</code>：</p>
+<pre class='hljs'><code><div><span class="hljs-meta">@Inject</span>
+NetworkService(OkHttpClient client, String baseUrl)
+</div></code></pre>
+<p><code>OkHttpClient</code> 来自父组件 <code>AppComponent</code> 的 <code>NetworkModule</code>。</p>
+<p><code>String baseUrl</code> 来自创建子组件时传入的 <code>@BindsInstance</code>：</p>
+<pre class='hljs'><code><div><span class="hljs-type">NetworkSessionComponent</span> <span class="hljs-variable">session</span> <span class="hljs-operator">=</span>
+    appComponent.networkSessionComponentFactory()
+        .create(<span class="hljs-string">&quot;https://api.example.com/&quot;</span>);
+</div></code></pre>
+<h3 id="subcomponent-%E7%9A%84%E5%AF%B9%E8%B1%A1%E5%9B%BE%E5%85%B3%E7%B3%BB" tabindex="-1"><code>Subcomponent</code> 的对象图关系</h3>
+<p>可以画成这样：</p>
+<div class="mermaid">flowchart TD
+    App["AppComponent\n@Singleton"]
+    Module["NetworkModule\n@Provides @Singleton OkHttpClient"]
+    Client["OkHttpClient\nAppComponent 缓存"]
+    Factory["NetworkSessionComponent.Factory"]
+    Session["NetworkSessionComponent\n@NetworkSessionScope"]
+    BaseUrl["@BindsInstance String baseUrl"]
+    Service["NetworkService"]
+
+    App --> Module
+    Module --> Client
+    App --> Factory
+    Factory --> Session
+    Session --> BaseUrl
+    Session --> Service
+    Service --> Client
+    Service --> BaseUrl</div><p>关键点：</p>
+<pre class='hljs'><code><div>子组件可以使用父组件里的绑定。
+父组件不能反过来使用子组件里的绑定。
+</div></code></pre>
+<p>所以：</p>
+<ul>
+<li><code>NetworkSessionComponent</code> 可以拿到 <code>AppComponent</code> 中的 <code>OkHttpClient</code>。</li>
+<li><code>AppComponent</code> 不能直接拿到 <code>NetworkSessionComponent</code> 中的 <code>baseUrl</code>。</li>
+</ul>
+<h2 id="%40subcomponent-%E4%BC%9A%E4%B8%8D%E4%BC%9A%E5%AF%BC%E8%87%B4%E7%BC%96%E8%AF%91%E6%8A%A5%E9%94%99" tabindex="-1"><code>@Subcomponent</code> 会不会导致编译报错</h2>
+<p>上面的 <code>@Subcomponent</code> 版本不会因为依赖图报错，因为依赖都闭合了：</p>
+<pre class='hljs'><code><div>NetworkService 需要 OkHttpClient
+父组件 AppComponent 提供 OkHttpClient
+
+NetworkService 需要 String baseUrl
+子组件 Factory 通过 @BindsInstance 提供 String
+</div></code></pre>
+<p>但是下面几种写法会报错。</p>
+<h3 id="1.-%E5%BF%98%E8%AE%B0%E6%8F%90%E4%BE%9B-baseurl" tabindex="-1">1. 忘记提供 <code>baseUrl</code></h3>
+<p>如果写成：</p>
+<pre class='hljs'><code><div><span class="hljs-meta">@Subcomponent</span>
+<span class="hljs-keyword">interface</span> <span class="hljs-title class_">NetworkSessionComponent</span> {
+    NetworkService <span class="hljs-title function_">getNetworkService</span><span class="hljs-params">()</span>;
+}
+</div></code></pre>
+<p>而 <code>NetworkService</code> 需要：</p>
+<pre class='hljs'><code><div>NetworkService(OkHttpClient client, String baseUrl)
+</div></code></pre>
+<p>Dagger 会报缺失 <code>String</code> 绑定。</p>
+<p>典型原因是：</p>
+<pre class='hljs'><code><div>String 不能通过 @Inject 构造函数创建，
+也没有 @Provides String，
+也没有 @BindsInstance String。
+</div></code></pre>
+<h3 id="2.-%E5%AD%90%E7%BB%84%E4%BB%B6%E5%92%8C%E7%88%B6%E7%BB%84%E4%BB%B6%E4%BD%BF%E7%94%A8%E5%90%8C%E4%B8%80%E4%B8%AA-scope" tabindex="-1">2. 子组件和父组件使用同一个 Scope</h3>
+<p>错误示例：</p>
+<pre class='hljs'><code><div><span class="hljs-meta">@Singleton</span>
+<span class="hljs-meta">@Component</span>
+<span class="hljs-keyword">interface</span> <span class="hljs-title class_">AppComponent</span> {
+}
+
+<span class="hljs-meta">@Singleton</span>
+<span class="hljs-meta">@Subcomponent</span>
+<span class="hljs-keyword">interface</span> <span class="hljs-title class_">NetworkSessionComponent</span> {
+}
+</div></code></pre>
+<p>父组件和子组件不能使用同一个 Scope。否则 Dagger 无法表达父子生命周期的层级关系。</p>
+<p>正确做法是：</p>
+<pre class='hljs'><code><div><span class="hljs-meta">@Singleton</span>
+<span class="hljs-meta">@Component</span>
+<span class="hljs-keyword">interface</span> <span class="hljs-title class_">AppComponent</span> {
+}
+
+<span class="hljs-meta">@NetworkSessionScope</span>
+<span class="hljs-meta">@Subcomponent</span>
+<span class="hljs-keyword">interface</span> <span class="hljs-title class_">NetworkSessionComponent</span> {
+}
+</div></code></pre>
+<p>也就是：父组件用 App 级 Scope，子组件用更短生命周期的自定义 Scope。</p>
+<h3 id="3.-%E5%AD%90%E7%BB%84%E4%BB%B6%E6%B2%A1%E6%9C%89%E6%B3%A8%E5%86%8C%E5%88%B0%E7%88%B6%E7%BB%84%E4%BB%B6" tabindex="-1">3. 子组件没有注册到父组件</h3>
+<p>如果 <code>AppComponent</code> 中没有暴露：</p>
+<pre class='hljs'><code><div>NetworkSessionComponent.Factory <span class="hljs-title function_">networkSessionComponentFactory</span><span class="hljs-params">()</span>;
+</div></code></pre>
+<p>或者没有通过：</p>
+<pre class='hljs'><code><div><span class="hljs-meta">@Module(subcomponents = NetworkSessionComponent.class)</span>
+</div></code></pre>
+<p>让 Dagger 知道父子关系，那么你就不能从 <code>AppComponent</code> 创建这个子组件。</p>
+<p>学习时可以记住：</p>
+<pre class='hljs'><code><div>Subcomponent 不是全局自动挂载的。
+它必须被父 Component 暴露或注册。
+</div></code></pre>
+<h2 id="%E5%BC%95%E5%85%A5-%40binds" tabindex="-1">引入 <code>@Binds</code></h2>
+<p>如果 <code>NetworkService</code> 不想直接依赖具体实现，而是依赖接口：</p>
+<pre class='hljs'><code><div><span class="hljs-keyword">interface</span> <span class="hljs-title class_">HttpClient</span> {
+    String <span class="hljs-title function_">name</span><span class="hljs-params">()</span>;
+}
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">OkHttpNetworkClient</span> <span class="hljs-keyword">implements</span> <span class="hljs-title class_">HttpClient</span> {
+
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> OkHttpClient okHttpClient;
+
+    <span class="hljs-meta">@Inject</span>
+    OkHttpNetworkClient(OkHttpClient okHttpClient) {
+        <span class="hljs-built_in">this</span>.okHttpClient = okHttpClient;
+    }
+
+    <span class="hljs-meta">@Override</span>
+    <span class="hljs-keyword">public</span> String <span class="hljs-title function_">name</span><span class="hljs-params">()</span> {
+        <span class="hljs-keyword">return</span> <span class="hljs-string">&quot;OkHttp&quot;</span>;
+    }
+}
+
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">NetworkService</span> {
+
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> HttpClient client;
+
+    <span class="hljs-meta">@Inject</span>
+    NetworkService(HttpClient client) {
+        <span class="hljs-built_in">this</span>.client = client;
+    }
+}
+</div></code></pre>
+<p>这时 Dagger 看到的是：</p>
+<pre class='hljs'><code><div>NetworkService 需要 HttpClient
+</div></code></pre>
+<p>但 <code>HttpClient</code> 是接口，不能直接 <code>new HttpClient()</code>。</p>
+<p>需要用 <code>@Binds</code> 告诉 Dagger：</p>
+<pre class='hljs'><code><div><span class="hljs-meta">@Module</span>
+<span class="hljs-keyword">abstract</span> <span class="hljs-keyword">class</span> <span class="hljs-title class_">HttpClientModule</span> {
+
+    <span class="hljs-meta">@Binds</span>
+    <span class="hljs-keyword">abstract</span> HttpClient <span class="hljs-title function_">bindHttpClient</span><span class="hljs-params">(OkHttpNetworkClient impl)</span>;
+}
+</div></code></pre>
+<p>含义是：</p>
+<pre class='hljs'><code><div>当对象图需要 HttpClient 时，
+使用 OkHttpNetworkClient 作为实现。
+</div></code></pre>
+<p>此时依赖图是：</p>
+<pre class='hljs'><code><div>NetworkService
+    |
+    v
+HttpClient
+    |
+    v
+OkHttpNetworkClient
+    |
+    v
+OkHttpClient
+    |
+    v
+NetworkModule.provideOkHttpClient()
+</div></code></pre>
+<p><code>@Binds</code> 和 <code>@Provides</code> 的区别：</p>
+<pre class='hljs'><code><div>@Provides：方法体里手动创建或返回对象。
+@Binds：不写方法体，只声明接口到实现类的映射。
+</div></code></pre>
+<p>如果当前工程同时启用了 Hilt 处理器，纯 Dagger 的 <code>@Module</code> 还需要注意 Hilt 的 <code>@InstallIn</code> 检查。像本项目之前的纯 Dagger2 示例一样，可以给纯 Dagger 模块加：</p>
+<pre class='hljs'><code><div><span class="hljs-meta">@DisableInstallInCheck</span>
+</div></code></pre>
+<p>避免 Hilt 把纯 Dagger 模块误判成缺少 <code>@InstallIn</code> 的 Hilt 模块。</p>
+<h2 id="%E5%BC%95%E5%85%A5%E8%87%AA%E5%AE%9A%E4%B9%89-%40qualifier" tabindex="-1">引入自定义 <code>@Qualifier</code></h2>
+<p>前面说过，Dagger 按：</p>
+<pre class='hljs'><code><div>类型 + 限定符
+</div></code></pre>
+<p>匹配依赖。</p>
+<p><code>@Named</code> 是一种通用限定符，但真实项目更推荐自定义限定符，因为它更明确、更不容易写错字符串。</p>
+<p>例如两个 <code>OkHttpClient</code>：</p>
+<pre class='hljs'><code><div><span class="hljs-keyword">import</span> javax.inject.Qualifier;
+
+<span class="hljs-meta">@Qualifier</span>
+<span class="hljs-meta">@Retention(RetentionPolicy.RUNTIME)</span>
+<span class="hljs-meta">@interface</span> ApiClient {
+}
+
+<span class="hljs-meta">@Qualifier</span>
+<span class="hljs-meta">@Retention(RetentionPolicy.RUNTIME)</span>
+<span class="hljs-meta">@interface</span> UploadClient {
+}
+
+<span class="hljs-meta">@Module</span>
+<span class="hljs-keyword">class</span> <span class="hljs-title class_">NetworkModule</span> {
+
+    <span class="hljs-meta">@Provides</span>
+    <span class="hljs-meta">@Singleton</span>
+    <span class="hljs-meta">@ApiClient</span>
+    <span class="hljs-keyword">static</span> OkHttpClient <span class="hljs-title function_">provideApiClient</span><span class="hljs-params">()</span> {
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">OkHttpClient</span>.Builder().build();
+    }
+
+    <span class="hljs-meta">@Provides</span>
+    <span class="hljs-meta">@Singleton</span>
+    <span class="hljs-meta">@UploadClient</span>
+    <span class="hljs-keyword">static</span> OkHttpClient <span class="hljs-title function_">provideUploadClient</span><span class="hljs-params">()</span> {
+        <span class="hljs-keyword">return</span> <span class="hljs-keyword">new</span> <span class="hljs-title class_">OkHttpClient</span>.Builder().build();
+    }
+}
+</div></code></pre>
+<p>使用方：</p>
+<pre class='hljs'><code><div><span class="hljs-keyword">class</span> <span class="hljs-title class_">NetworkService</span> {
+
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> OkHttpClient client;
+
+    <span class="hljs-meta">@Inject</span>
+    NetworkService(<span class="hljs-meta">@ApiClient</span> OkHttpClient client) {
+        <span class="hljs-built_in">this</span>.client = client;
+    }
+}
+</div></code></pre>
+<p>这时依赖 Key 是：</p>
+<pre class='hljs'><code><div>@ApiClient OkHttpClient
+</div></code></pre>
+<p>而不是普通的：</p>
+<pre class='hljs'><code><div>OkHttpClient
+</div></code></pre>
+<p>所以即使对象图里还有：</p>
+<pre class='hljs'><code><div>@UploadClient OkHttpClient
+</div></code></pre>
+<p>Dagger 也不会混淆。</p>
+<h2 id="%E5%BC%95%E5%85%A5-provider%3Ct%3E-%E5%92%8C-lazy%3Ct%3E" tabindex="-1">引入 <code>Provider&lt;T&gt;</code> 和 <code>Lazy&lt;T&gt;</code></h2>
+<p>如果构造函数写成：</p>
+<pre class='hljs'><code><div><span class="hljs-keyword">class</span> <span class="hljs-title class_">NetworkService</span> {
+
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> Provider&lt;OkHttpClient&gt; clientProvider;
+
+    <span class="hljs-meta">@Inject</span>
+    NetworkService(Provider&lt;OkHttpClient&gt; clientProvider) {
+        <span class="hljs-built_in">this</span>.clientProvider = clientProvider;
+    }
+
+    OkHttpClient <span class="hljs-title function_">client</span><span class="hljs-params">()</span> {
+        <span class="hljs-keyword">return</span> clientProvider.get();
+    }
+}
+</div></code></pre>
+<p>含义是：</p>
+<pre class='hljs'><code><div>NetworkService 创建时不立刻拿 OkHttpClient。
+等调用 provider.get() 时再向 Dagger 请求。
+</div></code></pre>
+<p>如果写成：</p>
+<pre class='hljs'><code><div><span class="hljs-keyword">class</span> <span class="hljs-title class_">NetworkService</span> {
+
+    <span class="hljs-keyword">private</span> <span class="hljs-keyword">final</span> Lazy&lt;OkHttpClient&gt; lazyClient;
+
+    <span class="hljs-meta">@Inject</span>
+    NetworkService(Lazy&lt;OkHttpClient&gt; lazyClient) {
+        <span class="hljs-built_in">this</span>.lazyClient = lazyClient;
+    }
+
+    OkHttpClient <span class="hljs-title function_">client</span><span class="hljs-params">()</span> {
+        <span class="hljs-keyword">return</span> lazyClient.get();
+    }
+}
+</div></code></pre>
+<p><code>Lazy&lt;T&gt;</code> 的特点是：</p>
+<pre class='hljs'><code><div>第一次 get() 时创建；
+后续 get() 返回同一个 Lazy 内部缓存的对象。
+</div></code></pre>
+<p>简单区分：</p>
+<pre class='hljs'><code><div>Provider&lt;T&gt;：每次 get() 都向对象图请求一次。
+Lazy&lt;T&gt;：第一次 get() 才请求，之后在 Lazy 内部复用。
+</div></code></pre>
+<p>如果 <code>OkHttpClient</code> 本身是 <code>@Singleton</code>，那么两者最终拿到的通常都是同一个 Component 缓存对象。但语义仍然不同：</p>
+<ul>
+<li><code>Provider&lt;T&gt;</code> 表示“我可能多次请求”。</li>
+<li><code>Lazy&lt;T&gt;</code> 表示“我想延迟到第一次使用才创建”。</li>
+</ul>
+<h2 id="%E6%89%A9%E5%B1%95%E5%90%8E%E7%9A%84%E6%9C%80%E7%BB%88%E7%BB%93%E8%AE%BA" tabindex="-1">扩展后的最终结论</h2>
+<p>把这些注解放回 <code>NetworkService</code> 示例里，可以形成一套完整理解：</p>
+<pre class='hljs'><code><div>@Inject
+声明 NetworkService 如何通过构造函数创建。
+
+@Module + @Provides
+声明第三方 OkHttpClient 如何创建。
+
+@Component
+声明 App 级对象图，并把 NetworkModule 加入对象图。
+
+@Singleton
+声明某个绑定在同一个 AppComponent 实例内缓存复用。
+
+@Subcomponent
+声明 AppComponent 下面的子对象图，用来承载更短生命周期的依赖。
+
+@BindsInstance
+把运行时参数，例如 baseUrl，放入某个 Component 或 Subcomponent 对象图。
+
+@Scope
+自定义子组件生命周期，例如 NetworkSessionScope。
+
+@Binds
+声明接口到实现类的映射。
+
+@Qualifier / @Named
+区分相同类型的多个绑定，例如多个 OkHttpClient。
+
+Provider&lt;T&gt; / Lazy&lt;T&gt;
+控制依赖获取时机。
+</div></code></pre>
+<p>最重要的主线仍然没有变：</p>
+<pre class='hljs'><code><div>Dagger 编译时构建对象图；
+对象图里的每个节点都有一个依赖 Key；
+依赖 Key = 类型 + 限定符；
+Component 决定哪些绑定进入当前对象图；
+Scope 决定对象是否在 Component 实例内缓存；
+Subcomponent 决定对象图的父子生命周期边界。
+</div></code></pre>
 
     </div>
-</body>
+
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({startOnLoad:true});</script>
+    </body>
 </html>
