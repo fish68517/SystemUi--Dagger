@@ -1,0 +1,469 @@
+Android Dagger：CarComponent 为什么会调用 CarModule.provideCarName()
+================================================================
+
+一、核心结论
+------------
+
+CarComponent 不会按照“方法名称”去寻找 CarModule 中的方法。
+
+Dagger 真正匹配的是：
+
+1. 返回类型；
+2. 限定符，例如 @Named、@Qualifier；
+3. 泛型类型。
+
+例如：
+
+@Component(modules = CarModule.class)
+interface CarComponent {
+
+    Car getCar();
+
+    String getCarName();
+}
+
+@Module
+class CarModule {
+
+    @Provides
+    static String provideCarName() {
+        return "Dagger 示例汽车";
+    }
+}
+
+getCarName() 的返回类型是 String，
+而 provideCarName() 提供的类型也是 String。
+
+因此 Dagger 会把它们连接起来。
+
+二、Dagger 不是根据函数名匹配
+----------------------------
+
+下面的代码仍然可以正常匹配：
+
+@Component(modules = CarModule.class)
+interface CarComponent {
+
+    String abc();
+}
+
+@Module
+class CarModule {
+
+    @Provides
+    static String createSomething() {
+        return "Dagger 示例汽车";
+    }
+}
+
+虽然方法名完全不同，但：
+
+Component 请求的是 String。
+Module 提供的也是 String。
+
+所以匹配成功。
+
+Dagger 的核心规则是：
+
+需要的依赖 Key == 提供的依赖 Key
+
+本例中：
+
+需要的 Key：String
+提供的 Key：String
+
+三、Dagger 如何生成 getCarName()
+-------------------------------
+
+你只声明了接口：
+
+@Component(modules = CarModule.class)
+interface CarComponent {
+
+    String getCarName();
+}
+
+具体实现由 Dagger 在编译阶段自动生成：
+
+DaggerCarComponent
+
+简化后的生成代码大致如下：
+
+final class DaggerCarComponent implements CarComponent {
+
+    @Override
+    public String getCarName() {
+        return CarModule.provideCarName();
+    }
+}
+
+实际生成代码可能通过 Factory 调用：
+
+@Override
+public String getCarName() {
+    return CarModule_ProvideCarNameFactory.provideCarName();
+}
+
+但核心逻辑相同：
+
+getCarName()
+    |
+    v
+请求 String
+    |
+    v
+找到 @Provides String
+    |
+    v
+调用 provideCarName()
+    |
+    v
+返回字符串
+
+四、getCar() 什么时候会调用 provideCarName()
+--------------------------------------------
+
+假设 Car 的构造函数需要 Engine 和 String：
+
+class Car {
+
+    private final Engine engine;
+    private final String carName;
+
+    @Inject
+    Car(Engine engine, String carName) {
+        this.engine = engine;
+        this.carName = carName;
+    }
+}
+
+Engine：
+
+class Engine {
+
+    @Inject
+    Engine() {
+    }
+}
+
+Module：
+
+@Module
+class CarModule {
+
+    @Provides
+    static String provideCarName() {
+        return "Dagger 示例汽车";
+    }
+}
+
+Component：
+
+@Component(modules = CarModule.class)
+interface CarComponent {
+
+    Car getCar();
+}
+
+调用：
+
+Car car = component.getCar();
+
+Dagger 会分析：
+
+Car 需要 Engine。
+Car 还需要 String。
+
+Engine 可以通过 @Inject 构造函数创建：
+
+new Engine()
+
+String 可以通过 @Provides 创建：
+
+CarModule.provideCarName()
+
+因此 Dagger 生成的 getCar() 核心逻辑相当于：
+
+@Override
+public Car getCar() {
+    Engine engine = new Engine();
+
+    String carName =
+            CarModule.provideCarName();
+
+    return new Car(engine, carName);
+}
+
+完整依赖链：
+
+component.getCar()
+        |
+        v
+需要 Car
+        |
+        v
+读取 @Inject Car(Engine, String)
+        |
+        +----------------------+
+        |                      |
+        v                      v
+需要 Engine              需要 String
+        |                      |
+        v                      v
+@Inject Engine()         @Provides String
+        |                      |
+        v                      v
+new Engine()       provideCarName()
+        |                      |
+        +-----------+----------+
+                    |
+                    v
+          new Car(engine, carName)
+                    |
+                    v
+                返回 Car
+
+五、仅添加 Module，不代表 @Provides 一定执行
+--------------------------------------------
+
+假设 Car 只依赖 Engine：
+
+class Car {
+
+    private final Engine engine;
+
+    @Inject
+    Car(Engine engine) {
+        this.engine = engine;
+    }
+}
+
+Module 仍然存在：
+
+@Module
+class CarModule {
+
+    @Provides
+    static String provideCarName() {
+        return "Dagger 示例汽车";
+    }
+}
+
+Component：
+
+@Component(modules = CarModule.class)
+interface CarComponent {
+
+    Car getCar();
+}
+
+此时调用：
+
+component.getCar();
+
+不会调用 provideCarName()。
+
+原因是 Car 的依赖路径中没有 String。
+
+依赖图只有：
+
+getCar()
+    |
+    v
+Car
+    |
+    v
+Engine
+
+所以 provideCarName() 不参与这次对象创建。
+
+@Component(modules = CarModule.class)
+
+只是把 CarModule 中的绑定加入当前依赖图，
+并不表示创建 Component 时立即执行全部 @Provides 方法。
+
+六、与原来纯 @Inject 版本的区别
+------------------------------
+
+原来的纯 @Inject 版本：
+
+class Engine {
+
+    @Inject
+    Engine() {
+    }
+}
+
+class Car {
+
+    @Inject
+    Car(Engine engine) {
+    }
+}
+
+@Component
+interface CarComponent {
+
+    Car getCar();
+}
+
+生成逻辑相当于：
+
+@Override
+public Car getCar() {
+    Engine engine = new Engine();
+    return new Car(engine);
+}
+
+这里 Engine 和 Car 都通过 @Inject 构造函数创建。
+
+增加 @Module 和 @Provides 后：
+
+class Car {
+
+    @Inject
+    Car(Engine engine, String carName) {
+    }
+}
+
+@Module
+class CarModule {
+
+    @Provides
+    static String provideCarName() {
+        return "Dagger 示例汽车";
+    }
+}
+
+依赖图变为：
+
+Car
+ |
+ +---- Engine：通过 @Inject 创建
+ |
+ +---- String：通过 @Provides 创建
+
+生成逻辑相当于：
+
+@Override
+public Car getCar() {
+    Engine engine = new Engine();
+    String carName = CarModule.provideCarName();
+
+    return new Car(engine, carName);
+}
+
+区别是：
+
+@Inject
+用于告诉 Dagger 如何通过构造函数创建对象。
+
+@Module
+用于声明一个依赖提供模块。
+
+@Provides
+用于告诉 Dagger 某个类型应当如何创建或返回。
+
+@Component
+将依赖请求方与依赖提供方连接起来。
+
+七、如果存在两个 @Provides String
+--------------------------------
+
+错误示例：
+
+@Module
+class CarModule {
+
+    @Provides
+    static String provideCarName() {
+        return "汽车名称";
+    }
+
+    @Provides
+    static String provideCarColor() {
+        return "黑色";
+    }
+}
+
+两个方法都提供 String。
+
+Dagger 不会根据方法名判断一个是名称、一个是颜色，
+而是认为存在两个相同的 String 绑定。
+
+这会产生重复绑定错误。
+
+需要使用限定符区分：
+
+@Module
+class CarModule {
+
+    @Provides
+    @Named("carName")
+    static String provideCarName() {
+        return "Dagger 示例汽车";
+    }
+
+    @Provides
+    @Named("carColor")
+    static String provideCarColor() {
+        return "黑色";
+    }
+}
+
+Car：
+
+class Car {
+
+    private final String carName;
+    private final String carColor;
+
+    @Inject
+    Car(
+        @Named("carName") String carName,
+        @Named("carColor") String carColor
+    ) {
+        this.carName = carName;
+        this.carColor = carColor;
+    }
+}
+
+此时两个依赖 Key 分别是：
+
+@Named("carName") String
+
+@Named("carColor") String
+
+Dagger 就可以准确区分。
+
+八、最终结论
+------------
+
+1. CarComponent 不会根据方法名寻找 provideCarName()。
+
+2. Component 方法的返回类型表示一个依赖请求。
+
+3. @Provides 方法的返回类型表示一个依赖绑定。
+
+4. 当 Component 请求 String，
+   而 CarModule 提供 String 时，
+   Dagger 会将两者连接起来。
+
+5. getCarName() 请求 String，
+   所以会直接使用 provideCarName()。
+
+6. 如果 Car 的 @Inject 构造函数需要 String，
+   getCar() 也会间接调用 provideCarName()。
+
+7. 如果当前对象创建路径不需要 String，
+   provideCarName() 就不会执行。
+
+8. @Module 的作用是把绑定加入 Component 的依赖图。
+
+9. @Provides 的作用是定义某个类型如何创建。
+
+10. Dagger 的匹配核心是：
+
+    类型 + 限定符
+
+    而不是方法名或参数变量名。

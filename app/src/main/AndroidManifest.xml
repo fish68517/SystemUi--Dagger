@@ -32,6 +32,11 @@
             android:label="Hilt"
             android:exported="false">
         </activity>
+
+        <activity android:name=".carDemo.CarDemoActivity"
+            android:label="Car Dagger Demo"
+            android:exported="false">
+        </activity>
     </application>
 
 </manifest>

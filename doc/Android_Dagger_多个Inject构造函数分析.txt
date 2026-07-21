@@ -1,0 +1,286 @@
+Android Dagger：一个类存在多个 @Inject 构造函数时如何处理
+====================================================
+
+一、核心结论
+------------
+
+Dagger 不会在多个 @Inject 构造函数之间自动选择。
+
+同一个类中，只能有一个构造函数使用 @Inject。
+
+如果 Car 同时存在两个 @Inject 构造函数，Dagger 会在编译阶段报错，
+不会生成可正常使用的 DaggerCarComponent。
+
+错误示例：
+
+class Car {
+
+    private Engine engine;
+    private Body body;
+
+    @Inject
+    Car(Engine engine) {
+        this.engine = engine;
+    }
+
+    @Inject
+    Car(Engine engine, Body body) {
+        this.engine = engine;
+        this.body = body;
+    }
+}
+
+Dagger 不会这样判断：
+
+只有 Engine 时，调用 Car(Engine)。
+
+同时有 Engine 和 Body 时，调用 Car(Engine, Body)。
+
+Dagger 没有“根据当前可用参数自动选择重载构造函数”的机制。
+
+--------------------------------------------------
+二、正确方案一：只保留一个 @Inject 构造函数
+--------------------------------------------------
+
+例如选择参数更完整的构造函数：
+
+class Engine {
+
+    @Inject
+    Engine() {
+    }
+}
+
+class Body {
+
+    @Inject
+    Body() {
+    }
+}
+
+class Car {
+
+    private final Engine engine;
+    private final Body body;
+
+    @Inject
+    Car(Engine engine, Body body) {
+        this.engine = engine;
+        this.body = body;
+    }
+}
+
+Component：
+
+@Component
+interface CarComponent {
+
+    Car getCar();
+}
+
+此时 Dagger 生成的 getCar() 核心逻辑相当于：
+
+@Override
+public Car getCar() {
+    Engine engine = new Engine();
+    Body body = new Body();
+
+    return new Car(engine, body);
+}
+
+调用过程：
+
+getCar()
+    |
+    v
+创建 Engine
+    |
+    v
+创建 Body
+    |
+    v
+调用 Car(Engine, Body)
+    |
+    v
+返回 Car
+
+--------------------------------------------------
+三、正确方案二：只有一个构造函数使用 @Inject
+--------------------------------------------------
+
+class Car {
+
+    private final Engine engine;
+    private Body body;
+
+    @Inject
+    Car(Engine engine) {
+        this.engine = engine;
+    }
+
+    Car(Engine engine, Body body) {
+        this.engine = engine;
+        this.body = body;
+    }
+}
+
+此时 Dagger 只识别：
+
+@Inject
+Car(Engine engine)
+
+所以 getCar() 相当于：
+
+@Override
+public Car getCar() {
+    return new Car(new Engine());
+}
+
+另一个没有 @Inject 的构造函数：
+
+Car(Engine engine, Body body)
+
+Dagger 不会自动使用它，只能手动调用：
+
+Car car = new Car(engine, body);
+
+--------------------------------------------------
+四、正确方案三：构造函数之间进行委托
+--------------------------------------------------
+
+可以让一个普通构造函数调用完整构造函数：
+
+class Car {
+
+    private final Engine engine;
+    private final Body body;
+
+    Car(Engine engine) {
+        this(engine, new Body());
+    }
+
+    @Inject
+    Car(Engine engine, Body body) {
+        this.engine = engine;
+        this.body = body;
+    }
+}
+
+这里仍然只有一个 @Inject 构造函数：
+
+@Inject
+Car(Engine engine, Body body)
+
+因此 Dagger 始终调用完整构造函数。
+
+注意：
+
+this(engine, new Body());
+
+中的 Body 是手动创建的，不属于 Dagger 管理。
+
+更规范的做法通常是：
+让所有依赖都通过完整构造函数注入。
+
+--------------------------------------------------
+五、如果确实需要两种不同的 Car
+--------------------------------------------------
+
+例如需要：
+
+1. 基础版汽车：只有 Engine。
+2. 完整版汽车：Engine 和 Body。
+
+不要在同一个 Car 类中写两个 @Inject 构造函数。
+
+可以拆分为两个不同的类：
+
+class BasicCar {
+
+    private final Engine engine;
+
+    @Inject
+    BasicCar(Engine engine) {
+        this.engine = engine;
+    }
+}
+
+class CompleteCar {
+
+    private final Engine engine;
+    private final Body body;
+
+    @Inject
+    CompleteCar(Engine engine, Body body) {
+        this.engine = engine;
+        this.body = body;
+    }
+}
+
+Component：
+
+@Component
+interface CarComponent {
+
+    BasicCar getBasicCar();
+
+    CompleteCar getCompleteCar();
+}
+
+Dagger 可以根据返回类型明确区分：
+
+BasicCar getBasicCar();
+
+相当于：
+
+new BasicCar(new Engine());
+
+CompleteCar getCompleteCar();
+
+相当于：
+
+new CompleteCar(new Engine(), new Body());
+
+--------------------------------------------------
+六、getCar() 到底使用哪个构造函数
+--------------------------------------------------
+
+规则非常简单：
+
+getCar() 只会使用 Car 类中唯一一个带 @Inject 的构造函数。
+
+例如：
+
+@Inject
+Car(Engine engine, Body body)
+
+那么 Dagger 生成的 getCar() 最终就会调用：
+
+new Car(engine, body)
+
+如果 Car 中存在两个 @Inject 构造函数：
+
+@Inject
+Car(Engine engine)
+
+@Inject
+Car(Engine engine, Body body)
+
+Dagger 不会选择其中一个，而是直接编译失败。
+
+--------------------------------------------------
+七、最终结论
+--------------------------------------------------
+
+1. 一个类只能有一个 @Inject 构造函数。
+
+2. Dagger 不会根据参数数量自动选择构造函数。
+
+3. getCar() 使用哪个构造函数，
+   只取决于 Car 中唯一被 @Inject 标记的构造函数。
+
+4. 如果需要多种创建方式，可以采用：
+   - 只保留一个 @Inject 构造函数；
+   - 其他构造函数不加 @Inject；
+   - 拆分成不同的类型；
+   - 使用 @Module 和 @Provides 明确提供不同对象。

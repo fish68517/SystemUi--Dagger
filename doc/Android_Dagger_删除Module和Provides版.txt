@@ -1,0 +1,208 @@
+Android Dagger 最简 Demo
+删除 @Module 和 @Provides 版本
+================================
+
+一、修改原则
+------------
+
+删除 @Module 和 @Provides 后，Dagger 只能通过 @Inject 构造方法创建对象。
+
+因此需要满足：
+
+1. Engine 有 @Inject 构造方法。
+2. Car 有 @Inject 构造方法。
+3. Car 需要的 Engine 也必须能够被 Dagger 创建。
+4. Component 不再配置 modules。
+5. 不能直接注入 String、接口或第三方类，除非另外提供绑定方式。
+
+--------------------------------
+二、完整示例代码
+--------------------------------
+
+import android.app.Activity;
+import android.os.Bundle;
+
+import javax.inject.Inject;
+
+import dagger.Component;
+
+/**
+ * Engine 可以由 Dagger 直接创建。
+ */
+class Engine {
+
+    @Inject
+    Engine() {
+        // @Inject 告诉 Dagger 如何创建 Engine
+    }
+
+    String start() {
+        return "发动机启动";
+    }
+}
+
+/**
+ * Car 依赖 Engine。
+ */
+class Car {
+
+    private final Engine engine;
+
+    @Inject
+    Car(Engine engine) {
+        // Dagger 创建 Car 时，会自动创建并传入 Engine
+        this.engine = engine;
+    }
+
+    String run() {
+        return engine.start() + "，汽车开始行驶";
+    }
+}
+
+/**
+ * 不再使用 modules 属性。
+ *
+ * Dagger 会根据 Car 和 Engine 的 @Inject 构造方法，
+ * 自动完成依赖对象的创建。
+ */
+@Component
+interface CarComponent {
+
+    Car getCar();
+}
+
+/**
+ * Android 中的调用示例。
+ */
+public class MainActivity extends Activity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // DaggerCarComponent 是 Dagger 编译后自动生成的类
+        CarComponent component =
+                DaggerCarComponent.create();
+
+        Car car = component.getCar();
+
+        System.out.println(car.run());
+    }
+}
+
+--------------------------------
+三、依赖创建过程
+--------------------------------
+
+MainActivity
+    |
+    v
+CarComponent
+    |
+    v
+Car
+    |
+    v
+Engine
+
+创建过程：
+
+1. MainActivity 调用 component.getCar()。
+2. Dagger 发现 Car 构造方法有 @Inject。
+3. Dagger 发现 Car 需要 Engine。
+4. Dagger 发现 Engine 构造方法也有 @Inject。
+5. Dagger 先创建 Engine。
+6. Dagger 再把 Engine 传给 Car。
+7. 最后返回 Car 对象。
+
+--------------------------------
+四、与原代码相比的修改
+--------------------------------
+
+原来的 Component：
+
+@Component(modules = CarModule.class)
+interface CarComponent {
+
+    Car getCar();
+
+    String getCarName();
+}
+
+修改后的 Component：
+
+@Component
+interface CarComponent {
+
+    Car getCar();
+}
+
+删除的代码：
+
+@Module
+class CarModule {
+
+    @Provides
+    static String provideCarName() {
+        return "Dagger 示例汽车";
+    }
+}
+
+同时删除：
+
+String getCarName();
+
+以及：
+
+String carName = component.getCarName();
+
+--------------------------------
+五、这种写法的限制
+--------------------------------
+
+纯 @Inject 构造注入适用于：
+
+- 自己编写的普通 Java 类；
+- 构造方法可以修改；
+- 类之间直接依赖具体实现类。
+
+以下情况通常仍然需要 @Module、@Provides 或 @Binds：
+
+1. 依赖接口。
+
+例如：
+
+interface Engine {
+    void start();
+}
+
+Dagger 不知道应该创建哪个实现类。
+
+2. 依赖 String、Integer 等普通数据。
+
+例如：
+
+@Inject
+Car(String carName) {
+}
+
+Dagger 不知道 carName 应该是什么值。
+
+3. 依赖第三方库对象。
+
+例如 Retrofit、Room、OkHttpClient。
+
+这些类的构造过程通常不能直接添加 @Inject。
+
+--------------------------------
+六、核心结论
+--------------------------------
+
+删除 @Module 和 @Provides 后，可以继续使用 Dagger，
+但所有依赖必须能够通过 @Inject 构造方法直接创建。
+
+当前示例中：
+
+Car 可以通过 @Inject 创建。
+Engine 可以通过 @Inject 创建。
+所以不需要 @Module 和 @Provides。

@@ -1,0 +1,143 @@
+Android Dagger 注解最简 Demo
+==============================
+
+说明：
+Dagger 中常用的是 @Provides，不是 @Provider。
+Provider<T> 是一个接口，用于延迟获取对象。
+
+--------------------------------
+1. 依赖对象：Engine
+--------------------------------
+
+class Engine {
+
+    @Inject
+    Engine() {
+        // @Inject 表示 Dagger 可以创建 Engine
+    }
+
+    String start() {
+        return "发动机启动";
+    }
+}
+
+--------------------------------
+2. 使用依赖的对象：Car
+--------------------------------
+
+class Car {
+
+    private Engine engine;
+
+    @Inject
+    Car(Engine engine) {
+        // Dagger 创建 Car 时，会自动传入 Engine
+        this.engine = engine;
+    }
+
+    String run() {
+        return engine.start() + "，汽车开始行驶";
+    }
+}
+
+--------------------------------
+3. Module：提供依赖
+--------------------------------
+
+@Module
+class CarModule {
+
+    @Provides
+    static String provideCarName() {
+        // @Provides 表示这个方法负责提供某个对象
+        return "Dagger 示例汽车";
+    }
+}
+
+--------------------------------
+4. Component：连接依赖
+--------------------------------
+
+@Component(modules = CarModule.class)
+interface CarComponent {
+
+    Car getCar();
+
+    String getCarName();
+}
+
+--------------------------------
+5. 调用示例
+--------------------------------
+
+public class MainActivity extends Activity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        CarComponent component =
+                DaggerCarComponent.create();
+
+        Car car = component.getCar();
+        String carName = component.getCarName();
+
+        System.out.println(carName);
+        System.out.println(car.run());
+    }
+}
+
+--------------------------------
+6. Provider<T> 示例
+--------------------------------
+
+class Test {
+
+    @Inject
+    Provider<Car> carProvider;
+
+    void createCar() {
+        Car car = carProvider.get();
+
+        // 调用 get() 时，再向 Dagger 获取 Car
+        System.out.println(car.run());
+    }
+}
+
+--------------------------------
+7. 四个核心知识点
+--------------------------------
+
+@Inject
+表示构造方法、字段或方法需要 Dagger 注入。
+
+@Module
+表示这个类是依赖提供模块。
+
+@Provides
+表示该方法负责创建并返回一个依赖对象。
+
+@Component
+连接依赖提供方和依赖使用方。
+
+Provider<T>
+不是注解。
+调用 get() 时，可以延迟获取依赖对象。
+
+--------------------------------
+8. 最简单的依赖关系
+--------------------------------
+
+MainActivity
+    |
+    v
+CarComponent
+    |
+    v
+Car
+    |
+    v
+Engine
+
+Dagger 根据 @Inject 自动创建 Engine 和 Car，
+再通过 CarComponent 将 Car 提供给 MainActivity。

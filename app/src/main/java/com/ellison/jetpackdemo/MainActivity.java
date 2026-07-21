@@ -24,6 +24,10 @@ public class MainActivity extends AppCompatActivity {
         jumpToActivity(com.ellison.jetpackdemo.hilt.DemoActivity.class);
     }
 
+    public void showCarDemo(View view) {
+        jumpToActivity(com.ellison.jetpackdemo.carDemo.CarDemoActivity.class);
+    }
+
     private void jumpToActivity(Class<?> clazz) {
         Intent intent = new Intent(this, clazz);
         try {
