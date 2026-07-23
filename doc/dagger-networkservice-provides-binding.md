@@ -1085,3 +1085,718 @@ Component 决定哪些绑定进入当前对象图；
 Scope 决定对象是否在 Component 实例内缓存；
 Subcomponent 决定对象图的父子生命周期边界。
 ```
+
+## 阶段二学习：同一个 `AppComponent` 内只要一个 `NetworkService`
+
+现在继续分析这个版本：
+
+```java
+class NetworkService {
+
+    private final OkHttpClient client;
+
+    @Inject
+    NetworkService(OkHttpClient client) {
+        this.client = client;
+    }
+}
+
+@Module
+class NetworkModule {
+
+    @Provides
+    static OkHttpClient provideOkHttpClient() {
+        return new OkHttpClient.Builder()
+                .build();
+    }
+}
+
+@Component(modules = NetworkModule.class)
+interface AppComponent {
+
+    NetworkService getNetworkService();
+    NetworkService getNetworkService2();
+}
+```
+
+问题是：如果通过 `AppComponent` 的两个方法获取 `NetworkService`，希望同一个 `AppComponent` 实例内拿到的是同一个对象，而不同 `AppComponent` 实例之间可以是不同对象，应该怎么写？
+
+### 结论：给 `NetworkService` 和 `AppComponent` 加同一个 Scope
+
+最常见写法是使用 `@Singleton`：
+
+```java
+import javax.inject.Inject;
+import javax.inject.Singleton;
+
+import dagger.Component;
+import dagger.Module;
+import dagger.Provides;
+import okhttp3.OkHttpClient;
+
+@Singleton
+class NetworkService {
+
+    private final OkHttpClient client;
+
+    @Inject
+    NetworkService(OkHttpClient client) {
+        this.client = client;
+    }
+}
+
+@Module
+class NetworkModule {
+
+    @Provides
+    static OkHttpClient provideOkHttpClient() {
+        return new OkHttpClient.Builder()
+                .build();
+    }
+}
+
+@Singleton
+@Component(modules = NetworkModule.class)
+interface AppComponent {
+
+    NetworkService getNetworkService();
+
+    NetworkService getNetworkService2();
+}
+```
+
+这样同一个 `AppComponent` 实例内：
+
+```java
+AppComponent component = DaggerAppComponent.create();
+
+NetworkService a = component.getNetworkService();
+NetworkService b = component.getNetworkService2();
+
+System.out.println(a == b); // true
+```
+
+原因是：`@Singleton` 标在 `NetworkService` 上，表示 `NetworkService` 这个绑定会在同一个 `@Singleton AppComponent` 实例内缓存。
+
+不同 `AppComponent` 实例之间：
+
+```java
+AppComponent component1 = DaggerAppComponent.create();
+AppComponent component2 = DaggerAppComponent.create();
+
+NetworkService a = component1.getNetworkService();
+NetworkService b = component2.getNetworkService();
+
+System.out.println(a == b); // false
+```
+
+这里的 `false` 很重要。它说明 `@Singleton` 不是 JVM 全局唯一，而是：
+
+```text
+同一个 Component 实例内唯一。
+```
+
+换句话说，每个 `AppComponent` 实例都有自己的对象缓存。
+
+### Scope 标在谁身上，就缓存谁
+
+如果只给 `OkHttpClient` 加 `@Singleton`：
+
+```java
+@Module
+class NetworkModule {
+
+    @Provides
+    @Singleton
+    static OkHttpClient provideOkHttpClient() {
+        return new OkHttpClient.Builder().build();
+    }
+}
+```
+
+只能保证同一个 `AppComponent` 内复用同一个 `OkHttpClient`。
+
+它不能保证 `NetworkService` 是同一个对象。
+
+此时可能出现：
+
+```text
+getNetworkService()  创建 NetworkService A
+getNetworkService2() 创建 NetworkService B
+
+NetworkService A 和 B 是两个对象，
+但它们内部持有同一个 OkHttpClient。
+```
+
+如果目标是：
+
+```text
+同一个 AppComponent 内 NetworkService 本身也只有一个
+```
+
+就必须给 `NetworkService` 这个绑定加 Scope：
+
+```java
+@Singleton
+class NetworkService {
+    ...
+}
+```
+
+可以记住这条规则：
+
+```text
+@Singleton NetworkService -> 缓存 NetworkService。
+@Singleton OkHttpClient -> 缓存 OkHttpClient。
+Scope 标在谁身上，就缓存谁。
+```
+
+### 如果 `AppComponent` 不加 `@Singleton` 会不会报错
+
+会报错。
+
+错误写法：
+
+```java
+@Singleton
+class NetworkService {
+
+    @Inject
+    NetworkService(OkHttpClient client) {
+    }
+}
+
+@Component(modules = NetworkModule.class)
+interface AppComponent {
+
+    NetworkService getNetworkService();
+}
+```
+
+这里 `NetworkService` 是 scoped binding，但 `AppComponent` 没有任何 Scope。
+
+Dagger 会在编译期报错，典型含义是：
+
+```text
+AppComponent (unscoped) may not reference scoped bindings
+```
+
+原因是：Dagger 需要知道 scoped binding 的缓存归属于哪个 Component 生命周期。
+
+如果 `NetworkService` 标了 `@Singleton`，但 `AppComponent` 没有标 `@Singleton`，Dagger 就无法把这个缓存绑定到当前对象图上。
+
+正确写法必须让绑定和 Component 使用同一个 Scope：
+
+```java
+@Singleton
+class NetworkService {
+    ...
+}
+
+@Singleton
+@Component(modules = NetworkModule.class)
+interface AppComponent {
+    NetworkService getNetworkService();
+    NetworkService getNetworkService2();
+}
+```
+
+如果你不想给 `AppComponent` 加 `@Singleton`，那也不能给 `NetworkService` 加 `@Singleton`。
+
+也就是：
+
+```java
+class NetworkService {
+
+    @Inject
+    NetworkService(OkHttpClient client) {
+    }
+}
+
+@Component(modules = NetworkModule.class)
+interface AppComponent {
+    NetworkService getNetworkService();
+    NetworkService getNetworkService2();
+}
+```
+
+这种写法可以编译，但通常不能保证：
+
+```text
+getNetworkService() == getNetworkService2()
+```
+
+因为没有 Scope，Dagger 没有义务缓存 `NetworkService`。
+
+### 阶段二最终结论
+
+如果目标是：
+
+```text
+同一个 AppComponent 内：
+getNetworkService() == getNetworkService2()
+
+不同 AppComponent 实例之间：
+可以是不同 NetworkService 对象
+```
+
+推荐写法是：
+
+```java
+@Singleton
+class NetworkService {
+    @Inject
+    NetworkService(OkHttpClient client) {
+    }
+}
+
+@Singleton
+@Component(modules = NetworkModule.class)
+interface AppComponent {
+    NetworkService getNetworkService();
+    NetworkService getNetworkService2();
+}
+```
+
+核心理解：
+
+```text
+Scope 决定对象是否缓存。
+Component 决定缓存的生命周期边界。
+同一个 Scope 必须同时出现在绑定和 Component 上。
+@Singleton 在 Dagger 中表示“同一个 Component 实例内唯一”，不是整个进程全局唯一。
+```
+
+## 阶段三：Subcomponent 使用场景
+
+### 1. 先给结论：什么时候需要 Subcomponent
+
+当你发现项目中存在这类需求时，就可以考虑 `Subcomponent`：
+
+```text
+有一个生命周期更长的对象图：AppComponent
+同时又有一个生命周期更短的对象图：Activity / Fragment / 页面 / 会话 / 请求
+
+子对象图需要复用父对象图里的公共对象，
+但子对象图自己又有独立的运行时参数、独立缓存对象、独立销毁时机。
+```
+
+换成当前 `NetworkService + OkHttpClient` 的例子：
+
+```text
+OkHttpClient：
+- 全 App 复用
+- 创建成本高
+- 适合放在 AppComponent
+- 可以用 @Singleton 缓存
+
+NetworkService：
+- 可能和某个页面、某次登录、某个 baseUrl、某个业务会话绑定
+- 不一定全 App 只有一个
+- 适合放在 Subcomponent
+- 可以用自定义 Scope 缓存在子对象图内
+```
+
+所以，`Subcomponent` 的核心不是“为了多写一个 Component”，而是为了表达：
+
+```text
+父对象图管理公共依赖。
+子对象图管理局部依赖。
+子对象图可以拿父对象图的对象。
+父对象图不应该反过来依赖子对象图的对象。
+```
+
+### 2. 不需要 Subcomponent 的场景
+
+如果你的代码只是这样：
+
+```java
+class NetworkService {
+
+    private final OkHttpClient client;
+
+    @Inject
+    NetworkService(OkHttpClient client) {
+        this.client = client;
+    }
+}
+
+@Module
+class NetworkModule {
+
+    @Provides
+    @Singleton
+    static OkHttpClient provideOkHttpClient() {
+        return new OkHttpClient.Builder().build();
+    }
+}
+
+@Singleton
+@Component(modules = NetworkModule.class)
+interface AppComponent {
+
+    NetworkService getNetworkService();
+    NetworkService getNetworkService2();
+}
+```
+
+这时通常不需要 `Subcomponent`。
+
+原因是：
+
+```text
+NetworkService 只依赖 OkHttpClient。
+OkHttpClient 已经由 AppComponent 提供。
+没有 Activity 参数。
+没有页面级对象。
+没有“父对象图 + 子对象图”的生命周期差异。
+```
+
+如果你想让 `getNetworkService()` 和 `getNetworkService2()` 返回同一个对象，只需要给 `NetworkService` 也加上 `@Singleton`：
+
+```java
+@Singleton
+class NetworkService {
+
+    private final OkHttpClient client;
+
+    @Inject
+    NetworkService(OkHttpClient client) {
+        this.client = client;
+    }
+}
+```
+
+这属于“同一个 AppComponent 内缓存一个对象”，不需要引入 `Subcomponent`。
+
+### 3. 需要 Subcomponent 的典型场景：父对象图提供 OkHttpClient，子对象图提供页面参数
+
+假设现在 `NetworkService` 不只是需要 `OkHttpClient`，还需要一个运行时传入的 `baseUrl`。
+
+这个 `baseUrl` 可能来自：
+
+```text
+某个页面
+某个账号环境
+某次业务会话
+某个测试环境配置
+```
+
+那么它就不适合直接写死在 `NetworkModule` 里，也不适合放成 App 全局唯一对象。
+
+这时可以这样设计：
+
+```java
+@Qualifier
+@interface BaseUrl {
+}
+
+@Scope
+@interface NetworkSessionScope {
+}
+
+class NetworkService {
+
+    private final OkHttpClient client;
+    private final String baseUrl;
+
+    @Inject
+    NetworkService(OkHttpClient client, @BaseUrl String baseUrl) {
+        this.client = client;
+        this.baseUrl = baseUrl;
+    }
+}
+
+@Module
+class NetworkModule {
+
+    @Provides
+    @Singleton
+    static OkHttpClient provideOkHttpClient() {
+        return new OkHttpClient.Builder().build();
+    }
+}
+
+@Module(subcomponents = NetworkSessionComponent.class)
+class NetworkSubcomponentsModule {
+}
+
+@Singleton
+@Component(modules = {
+        NetworkModule.class,
+        NetworkSubcomponentsModule.class
+})
+interface AppComponent {
+
+    NetworkSessionComponent.Factory networkSessionComponentFactory();
+}
+
+@NetworkSessionScope
+@Subcomponent
+interface NetworkSessionComponent {
+
+    NetworkService getNetworkService();
+
+    @Subcomponent.Factory
+    interface Factory {
+        NetworkSessionComponent create(@BindsInstance @BaseUrl String baseUrl);
+    }
+}
+```
+
+这段代码表达的对象图关系是：
+
+```text
+AppComponent
+    └── @Singleton OkHttpClient
+            └── NetworkSessionComponent
+                    ├── @BaseUrl String
+                    └── NetworkService
+```
+
+关键点：
+
+```text
+OkHttpClient 来自父对象图 AppComponent。
+baseUrl 来自创建子对象图时传入的运行时参数。
+NetworkService 在子对象图里被创建。
+NetworkService 可以同时使用父对象图的 OkHttpClient 和子对象图的 baseUrl。
+```
+
+### 4. 为什么这里 Subcomponent 比普通 Component 更合适
+
+如果不用 `Subcomponent`，你可能会写两个完全独立的 Component：
+
+```java
+@Component(modules = NetworkModule.class)
+interface AppComponent {
+}
+
+@Component
+interface NetworkSessionComponent {
+    NetworkService getNetworkService();
+}
+```
+
+这样的问题是：
+
+```text
+NetworkSessionComponent 是独立对象图。
+它不会天然知道 AppComponent 里有什么。
+它不能自动复用 AppComponent 的 OkHttpClient。
+如果 NetworkService 需要 OkHttpClient，Dagger 会要求子 Component 自己也能提供 OkHttpClient。
+```
+
+而 `Subcomponent` 的关系是：
+
+```text
+NetworkSessionComponent 是 AppComponent 创建出来的子对象图。
+子对象图天然可以访问父对象图中暴露给 Dagger 的绑定。
+所以 NetworkService 缺 OkHttpClient 时，Dagger 会沿着父子对象图关系向父对象图找。
+```
+
+注意：这里仍然不是按名字查找。
+
+Dagger 看的还是：
+
+```text
+类型：OkHttpClient
+限定符：无
+所在对象图：先查子图，再查父图
+```
+
+### 5. 多个子对象图：父对象共享，子对象隔离
+
+比如你创建两个子对象图：
+
+```java
+AppComponent appComponent = DaggerAppComponent.create();
+
+NetworkSessionComponent devSession =
+        appComponent.networkSessionComponentFactory()
+                .create("https://dev.example.com");
+
+NetworkSessionComponent prodSession =
+        appComponent.networkSessionComponentFactory()
+                .create("https://prod.example.com");
+
+NetworkService devService = devSession.getNetworkService();
+NetworkService prodService = prodSession.getNetworkService();
+```
+
+这时可以这样理解：
+
+```text
+devSession 和 prodSession 共用同一个 AppComponent。
+所以它们拿到的 OkHttpClient 可以是同一个 @Singleton 对象。
+
+但 devSession 和 prodSession 是两个不同的子对象图实例。
+所以它们的 @BaseUrl String 不同。
+它们创建出来的 NetworkService 也可以不同。
+```
+
+这就是 `Subcomponent` 很常见的使用价值：
+
+```text
+全局对象共享。
+局部对象隔离。
+运行时参数隔离。
+生命周期边界清晰。
+```
+
+### 6. 如果希望 NetworkService 在每个子对象图内唯一
+
+可以给 `NetworkService` 加上子 Scope：
+
+```java
+@NetworkSessionScope
+class NetworkService {
+
+    private final OkHttpClient client;
+    private final String baseUrl;
+
+    @Inject
+    NetworkService(OkHttpClient client, @BaseUrl String baseUrl) {
+        this.client = client;
+        this.baseUrl = baseUrl;
+    }
+}
+```
+
+含义是：
+
+```text
+同一个 NetworkSessionComponent 内：
+getNetworkService() 多次返回同一个 NetworkService。
+
+不同 NetworkSessionComponent 之间：
+NetworkService 不是同一个对象。
+```
+
+也就是说：
+
+```text
+@Singleton 控制 AppComponent 内唯一。
+@NetworkSessionScope 控制 NetworkSessionComponent 内唯一。
+```
+
+不要把 `@Singleton` 直接用于子对象图里的 `NetworkService`，否则语义会混乱。
+
+更推荐：
+
+```text
+AppComponent 使用 @Singleton。
+Subcomponent 使用自己的 Scope，例如 @NetworkSessionScope、@ActivityScope、@ScreenScope。
+```
+
+### 7. 从 Dagger 生成代码角度理解 Subcomponent
+
+如果从编译后的 Dagger 代码看，大概可以这样理解：
+
+```text
+DaggerAppComponent
+    - 持有 OkHttpClient 的 Provider
+    - 持有创建 NetworkSessionComponentImpl 的 Factory
+
+NetworkSessionComponentImpl
+    - 持有父对象图 DaggerAppComponent 的引用
+    - 持有 @BaseUrl String baseUrl
+    - 创建 NetworkService 时：
+        new NetworkService(appComponent.okHttpClientProvider.get(), baseUrl)
+```
+
+也就是说，`Subcomponent` 生成代码里的关键特征是：
+
+```text
+子 Component 实现类内部会保存父 Component 引用。
+所以子对象图能访问父对象图里的 Provider。
+```
+
+这就是为什么可以说：
+
+```text
+AppComponent 是父对象图。
+NetworkSessionComponent 是子对象图。
+NetworkService 的完整依赖来自“父图 + 子图”。
+```
+
+### 8. 常见编译错误
+
+#### 8.1 子对象图缺少运行时参数
+
+如果 `NetworkService` 需要 `@BaseUrl String`：
+
+```java
+@Inject
+NetworkService(OkHttpClient client, @BaseUrl String baseUrl) {
+}
+```
+
+但创建 `Subcomponent` 时没有提供：
+
+```java
+@Subcomponent.Factory
+interface Factory {
+    NetworkSessionComponent create();
+}
+```
+
+Dagger 会报类似错误：
+
+```text
+@BaseUrl String cannot be provided without an @Provides-annotated method.
+```
+
+解决方式是使用 `@BindsInstance`：
+
+```java
+@Subcomponent.Factory
+interface Factory {
+    NetworkSessionComponent create(@BindsInstance @BaseUrl String baseUrl);
+}
+```
+
+#### 8.2 父 Component 和子 Subcomponent 使用同一个 Scope
+
+如果父对象图是：
+
+```java
+@Singleton
+@Component
+interface AppComponent {
+}
+```
+
+子对象图不要这样写：
+
+```java
+@Singleton
+@Subcomponent
+interface NetworkSessionComponent {
+}
+```
+
+因为这会让 Dagger 无法表达清楚生命周期边界。
+
+更合理的是：
+
+```java
+@NetworkSessionScope
+@Subcomponent
+interface NetworkSessionComponent {
+}
+```
+
+### 9. 阶段三最终结论
+
+```text
+当对象都属于 App 全局生命周期时，用 @Singleton + AppComponent 就够了。
+
+当一部分对象属于 App 全局生命周期，
+另一部分对象属于页面、会话、请求等更短生命周期时，
+就应该考虑 Subcomponent。
+
+Subcomponent 的价值是：
+子对象图可以复用父对象图的依赖，
+同时拥有自己的运行时参数、自己的 Scope、自己的生命周期。
+```
